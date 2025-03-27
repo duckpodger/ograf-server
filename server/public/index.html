@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>OGraf Server</title>
+    <!-- inport stylesheets-->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="public/bootstrap-4.0.0/css/bootstrap.css"
+    />
+    <link rel="stylesheet" type="text/css" href="public/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>OGraf Server</h1>
+      <div class="card">
+        <div class="card-body">
+          <ul>
+            <li><a href="/serverApi/v1/graphics/list">List Graphics</a></li>
+            <li><a href="/serverApi/v1/renderers/list">List Renderers</a></li>
+          </ul>
+          <div>
+            <form
+              action="/serverApi/v1/graphics/graphic"
+              method="post"
+              enctype="multipart/form-data"
+            >
+              Upload Graphic (zip file): <br />
+              <input type="file" id="graphic" name="graphic" accept=".zip" />
+              <input type="submit" />
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div></div>
+    </div>
+  </body>
+</html>
