@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Form, Dropdown } from "react-bootstrap";
+import { Button, Form, Dropdown, ButtonGroup } from "react-bootstrap";
 import { getDefaultDataFromSchema } from "./GDD/gdd/data.js";
 import { GDDGUI } from "./GDD/gdd-gui.jsx";
 
@@ -27,7 +27,7 @@ export function App() {
   return (
     <div className="container-md">
       <div>
-        <h1>Controller</h1>
+        <h1>OGraf Simple Controller</h1>
       </div>
       <Form>
         <div className="mb-3">
@@ -50,7 +50,7 @@ export function App() {
       <div>
         <h2>Upload Graphics</h2>
         <form
-          action={`${serverApiUrl}/serverApi/v1/graphics/graphic`}
+          action={`${serverApiUrl}/serverApi/internal/graphics/graphic`}
           method="post"
           encType="multipart/form-data"
         >
@@ -86,7 +86,9 @@ async function retrieveServerData(serverApiUrl) {
     rendererManifests: {},
   };
   {
-    const response = await fetch(`${serverApiUrl}/serverApi/v1/graphics/list`);
+    const response = await fetch(
+      `${serverApiUrl}/serverApi/internal/graphics/list`
+    );
     if (response.status >= 300)
       throw new Error(
         `HTTP response error: [${response.status}] ${JSON.stringify(
@@ -99,7 +101,9 @@ async function retrieveServerData(serverApiUrl) {
     data.graphics = responseData.graphics;
   }
   {
-    const response = await fetch(`${serverApiUrl}/serverApi/v1/renderers/list`);
+    const response = await fetch(
+      `${serverApiUrl}/serverApi/internal/renderers/list`
+    );
     if (response.status >= 300)
       throw new Error(
         `HTTP response error: [${response.status}] ${JSON.stringify(
@@ -114,7 +118,7 @@ async function retrieveServerData(serverApiUrl) {
 
   for (const renderer of data.renderers) {
     const response = await fetch(
-      `${serverApiUrl}/serverApi/v1/renderers/renderer/${renderer.id}/manifest`
+      `${serverApiUrl}/serverApi/internal/renderers/renderer/${renderer.id}/manifest`
     );
     if (response.status >= 300)
       throw new Error(
@@ -175,7 +179,7 @@ function RenderTarget({ serverApiUrl, serverData, renderer, renderTarget }) {
           <Button
             onClick={() => {
               fetch(
-                `${serverApiUrl}/serverApi/v1/renderers/renderer/${renderer.id}/clear`,
+                `${serverApiUrl}/serverApi/internal/renderers/renderer/${renderer.id}/clear`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -204,9 +208,9 @@ function RenderTarget({ serverApiUrl, serverData, renderer, renderTarget }) {
 }
 
 function GraphicPlaylist({ serverApiUrl, serverData, renderer }) {
-  const [graphicQueue, setGraphicQueue] = React.useState([
-    serverData.graphics[0],
-  ]);
+  const [graphicQueue, setGraphicQueue] = React.useState([]);
+  console.log("graphicQueue", graphicQueue);
+  console.log("serverData.graphics");
 
   return (
     <div>
@@ -253,6 +257,31 @@ function QueuedGraphic({ serverApiUrl, serverData, renderer, graphic }) {
 
   const manifest = getGraphicManifest(serverApiUrl, graphic);
 
+  const onAction = (actionName, params) => {
+    fetch(
+      `${serverApiUrl}/serverApi/internal/renderers/renderer/${renderer.id}/target/${renderTarget.id}/${actionName}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: {
+            graphic: { id: graphic.id, version: graphic.version },
+          },
+          params: params,
+        }),
+      }
+    )
+      .then((response) => {
+        if (response.status >= 300)
+          throw new Error(
+            `HTTP response error: [${response.status}] ${JSON.stringify(
+              response.body
+            )}`
+          );
+      })
+      .catch(console.error);
+  };
+
   return (
     <div>
       <h4>{graphic.name}</h4>
@@ -284,7 +313,7 @@ function QueuedGraphic({ serverApiUrl, serverData, renderer, graphic }) {
             <Button
               onClick={() => {
                 fetch(
-                  `${serverApiUrl}/serverApi/v1/renderers/renderer/${renderer.id}/target/${renderTarget.id}/load`,
+                  `${serverApiUrl}/serverApi/internal/renderers/renderer/${renderer.id}/target/${renderTarget.id}/load`,
                   {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -309,23 +338,26 @@ function QueuedGraphic({ serverApiUrl, serverData, renderer, graphic }) {
           </div>
           <div>
             {manifest && (
+              <GraphicsDefaultActions
+                schema={manifest.schema}
+                onAction={onAction}
+              />
+            )}
+          </div>
+          <div>
+            {manifest && (
               <div>
-                {Object.entries(manifest.actions).map(([actionId, action]) => {
+                {(manifest.customActions || []).map((action) => {
                   return (
                     <div
-                      key={actionId}
+                      key={action.id}
                       className="card"
                       style={{ width: "30em", display: "inline-block" }}
                     >
                       <div className="card-body">
-                        <GraphicsAction
-                          serverApiUrl={serverApiUrl}
-                          serverData={serverData}
-                          renderer={renderer}
-                          graphic={graphic}
-                          renderTarget={renderTarget}
-                          actionId={actionId}
+                        <GraphicsCustomAction
                           action={action}
+                          onAction={onAction}
                         />
                       </div>
                     </div>
@@ -342,6 +374,7 @@ function QueuedGraphic({ serverApiUrl, serverData, renderer, graphic }) {
 
 const graphicsManifestCache = {};
 function getGraphicManifest(serverApiUrl, graphic) {
+  console.log("graphic", graphic);
   const [manifest, setManifest] = React.useState(
     graphicsManifestCache[graphic.id]
   );
@@ -349,7 +382,7 @@ function getGraphicManifest(serverApiUrl, graphic) {
   React.useEffect(() => {
     if (!manifest) {
       fetch(
-        `${serverApiUrl}/serverApi/v1/graphics/graphic/${graphic.id}/${graphic.version}/manifest`
+        `${serverApiUrl}/serverApi/internal/graphics/graphic/${graphic.id}/${graphic.version}/manifest`
       )
         .then((response) => {
           if (response.status >= 300)
@@ -379,15 +412,57 @@ function getGraphicManifest(serverApiUrl, graphic) {
   return;
 }
 
-function GraphicsAction({
-  serverApiUrl,
-  serverData,
-  renderer,
-  graphic,
-  renderTarget,
-  actionId,
-  action,
-}) {
+function GraphicsDefaultActions({ schema, onAction }) {
+  const initialData = schema ? getDefaultDataFromSchema(schema) : {};
+
+  const [data, setData] = React.useState(initialData);
+
+  const onDataSave = (d) => {
+    setData(JSON.parse(JSON.stringify(d)));
+  };
+
+  return (
+    <div>
+      <div>
+        {schema && <GDDGUI schema={schema} data={data} setData={onDataSave} />}
+      </div>
+      <div>
+        <ButtonGroup>
+          <Button
+            onClick={() => {
+              onAction("updateAction", {
+                data: data,
+              });
+            }}
+          >
+            Update
+          </Button>
+          <Button
+            onClick={() => {
+              onAction("playAction", {
+                delta: undefined,
+                // goto: undefined,
+                // skipAnimation: undefined
+              });
+            }}
+          >
+            Play
+          </Button>
+          <Button
+            onClick={() => {
+              onAction("stopAction", {
+                // skipAnimation: undefined
+              });
+            }}
+          >
+            Stop
+          </Button>
+        </ButtonGroup>
+      </div>
+    </div>
+  );
+}
+function GraphicsCustomAction({ action, onAction }) {
   const initialData = action.schema
     ? getDefaultDataFromSchema(action.schema)
     : {};
@@ -407,35 +482,13 @@ function GraphicsAction({
       <Button
         onClick={() => {
           // Invoke action:
-
-          fetch(
-            `${serverApiUrl}/serverApi/v1/renderers/renderer/${renderer.id}/target/${renderTarget.id}/invokeAction`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                target: {
-                  graphic: { id: graphic.id, version: graphic.version },
-                },
-                action: {
-                  method: actionId,
-                  payload: data,
-                },
-              }),
-            }
-          )
-            .then((response) => {
-              if (response.status >= 300)
-                throw new Error(
-                  `HTTP response error: [${response.status}] ${JSON.stringify(
-                    response.body
-                  )}`
-                );
-            })
-            .catch(console.error);
+          onAction("customAction", {
+            id: action.id,
+            payload: data,
+          });
         }}
       >
-        {action.label}
+        {action.name || action.id}
       </Button>
     </div>
   );

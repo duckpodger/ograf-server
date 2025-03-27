@@ -13,7 +13,7 @@ class GraphicsStore {
     constructor() {
         /** File path where to store Graphics */
         this.FILE_PATH = path_1.default.resolve("./localGraphicsStorage");
-        /** How long to wait befor removing Graphics, in ms */
+        /** How long to wait before removing Graphics, in ms */
         this.REMOVAL_WAIT_TIME = 1000 * 3600 * 24; // 24 hours
         // Ensure the directory exists
         fs_1.default.mkdirSync(this.FILE_PATH, { recursive: true });
@@ -43,7 +43,6 @@ class GraphicsStore {
                 name: manifest.name,
                 description: manifest.description,
                 author: manifest.author,
-                draft: manifest.draft,
             });
         }
         ctx.body = (0, lib_1.literal)({

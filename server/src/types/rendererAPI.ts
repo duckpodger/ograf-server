@@ -1,5 +1,5 @@
 import {
-  GraphicInvokeActionTarget,
+  GraphicsAPI,
   EmptyPayload,
   ActionInvokeParams,
   VendorExtend,
@@ -14,6 +14,7 @@ import {
   RendererStatus,
   RenderTargetStatus,
 } from "./renderer";
+import { GraphicInvokeActionTarget } from "./serverAPI";
 
 /*
  * ================================================================================================
@@ -63,14 +64,41 @@ export interface MethodsOnRenderer {
   ) => PromiseLike<
     { graphicInstance: GraphicInstanceOnTarget[] } & VendorExtend
   >;
-  /** Invokes an action on a graphicInstance. Actions are defined by the Graphic's manifest */
-  invokeGraphicAction: (
+  /** Invokes an updateAction on a graphicInstance. Actions are defined by the Graphic's manifest */
+  invokeGraphicUpdateAction: (
     params: {
       renderTargetId: string;
       target: GraphicInvokeActionTarget;
-      action: ActionInvokeParams;
+      params: Parameters<GraphicsAPI.Graphic["updateAction"]>[0];
     } & VendorExtend
-  ) => PromiseLike<{ value: unknown } & VendorExtend>;
+  ) => PromiseLike<ReturnType<GraphicsAPI.Graphic["updateAction"]>>;
+
+  /** Invokes an playAction on a graphicInstance. Actions are defined by the Graphic's manifest */
+  invokeGraphicPlayAction: (
+    params: {
+      renderTargetId: string;
+      target: GraphicInvokeActionTarget;
+      params: Parameters<GraphicsAPI.Graphic["playAction"]>[0];
+    } & VendorExtend
+  ) => PromiseLike<ReturnType<GraphicsAPI.Graphic["playAction"]>>;
+
+  /** Invokes an stopAction on a graphicInstance. Actions are defined by the Graphic's manifest */
+  invokeGraphicStopAction: (
+    params: {
+      renderTargetId: string;
+      target: GraphicInvokeActionTarget;
+      params: Parameters<GraphicsAPI.Graphic["stopAction"]>[0];
+    } & VendorExtend
+  ) => PromiseLike<ReturnType<GraphicsAPI.Graphic["stopAction"]>>;
+
+  /** Invokes an customAction on a graphicInstance. Actions are defined by the Graphic's manifest */
+  invokeGraphicCustomAction: (
+    params: {
+      renderTargetId: string;
+      target: GraphicInvokeActionTarget;
+      params: Parameters<GraphicsAPI.Graphic["customAction"]>[0];
+    } & VendorExtend
+  ) => PromiseLike<ReturnType<GraphicsAPI.Graphic["customAction"]>>;
 }
 
 /**

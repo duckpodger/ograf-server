@@ -35,21 +35,31 @@ export async function initializeServer() {
 
   // Set up static file serving:
   httpRouter.get("/", async (ctx) => {
-    ctx.body = await fs.readFile("./public/index.html", "utf8");
+    await serveFile(ctx, path.resolve("./public/index.html"));
   });
   httpRouter.get(/\/public\/.*/, async (ctx) => {
-    console.log(ctx.path);
-    const publicPath = path.resolve("./public");
-    const filePath = path.resolve(
-      publicPath,
+    await serveFromPath(
+      ctx,
+      path.resolve("./public"),
       ctx.path.trim().replace(/^\/public\//, "")
     );
-
-    // ensure that the resulting path is in public:
-    if (!filePath.startsWith(publicPath)) throw new Error("Invalid path");
-    console.log("filePath", filePath);
-
-    ctx.body = await fs.readFile(filePath, "utf8");
+  });
+  httpRouter.get(/\/renderer\/using-layers\/.*/, async (ctx) => {
+    await serveFromPath(
+      ctx,
+      path.resolve("../renderer/using-layers"),
+      ctx.path.trim().replace(/^\/renderer\/using-layers\//, "")
+    );
+  });
+  // httpRouter.get("/controller", async (ctx) => {
+  //   await serveFile(ctx, path.resolve("../controller/dist/index.html"));
+  // });
+  httpRouter.get(/\/controller\/.*/, async (ctx) => {
+    await serveFromPath(
+      ctx,
+      path.resolve("../controller/dist"),
+      ctx.path.trim().replace(/^\/controller\//, "")
+    );
   });
   // httpRouter.get("/renderer/*", async (ctx) => {
 
@@ -65,4 +75,54 @@ export async function initializeServer() {
 
   app.listen(PORT);
   console.log(`Server running on \x1b[36m http://127.0.0.1:${PORT}/\x1b[0m`);
+}
+
+async function serveFromPath(
+  ctx: Koa.ParameterizedContext,
+  folderPath: string,
+  url: string
+) {
+  const filePath = path.resolve(folderPath, url);
+
+  // ensure that the resulting path is in public:
+  if (!filePath.startsWith(folderPath)) throw new Error("Invalid path");
+
+  await serveFile(ctx, filePath);
+}
+async function serveFile(ctx: Koa.ParameterizedContext, filePath: string) {
+  // set header to the correct mime type
+  const ext = path.extname(filePath);
+
+  let contentType = "application/octet-stream"; // unknown
+
+  if (ext === ".js") contentType = "text/javascript";
+  else if (ext === ".css") contentType = "text/css";
+  else if (ext === ".html") contentType = "text/html";
+  else if (ext === ".png") contentType = "image/png";
+  else if (ext === ".svg") contentType = "image/svg+xml";
+  else if (ext === ".map") contentType = "application/json";
+  else {
+    console.error(`Unknown file type: ${ext} (${filePath})`);
+  }
+
+  try {
+    ctx.set("Content-Type", contentType);
+
+    if (contentType.startsWith("text/")) {
+      ctx.set("charset", "utf-8");
+      ctx.body = await fs.readFile(filePath, "utf8");
+    } else {
+      ctx.body = await fs.readFile(filePath);
+    }
+  } catch (e) {
+    if ((e as any).code === "ENOENT") {
+      ctx.status = 404;
+      ctx.body = "File not found";
+      console.log("File not found:", filePath);
+    } else {
+      ctx.status = 500;
+      ctx.body = "Internal server error";
+      throw e;
+    }
+  }
 }

@@ -1,4 +1,5 @@
-import { GraphicInfo, EmptyPayload, VendorSpecific } from "ograf";
+import { EmptyPayload, VendorSpecific } from "ograf";
+import { GraphicInfo } from "./serverAPI";
 
 export type Action = {
   label: string;

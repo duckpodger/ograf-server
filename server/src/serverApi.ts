@@ -37,64 +37,81 @@ export function setupServerApi(
   };
   // ----- Graphics related endpoints ------------------------------
   serverApiRouter.get(
-    `/serverApi/v1/graphics/list`,
+    `/serverApi/internal/graphics/list`,
     handleError(async (ctx) => graphicsStore.listGraphics(ctx))
   );
   serverApiRouter.delete(
-    `/serverApi/v1/graphics/graphic/:graphicId/:graphicVersion`,
+    `/serverApi/internal/graphics/graphic/:graphicId/:graphicVersion`,
     handleError(async (ctx) => graphicsStore.deleteGraphic(ctx))
   );
   serverApiRouter.get(
-    `/serverApi/v1/graphics/graphic/:graphicId/:graphicVersion/manifest`,
+    `/serverApi/internal/graphics/graphic/:graphicId/:graphicVersion/manifest`,
     handleError(async (ctx) => graphicsStore.getGraphicManifest(ctx))
   );
+  // serverApiRouter.get(
+  //   `/serverApi/internal/graphics/graphic/:graphicId/:graphicVersion/graphic`,
+  //   handleError(async (ctx) => graphicsStore.getGraphicModule(ctx))
+  // );
   serverApiRouter.get(
-    `/serverApi/v1/graphics/graphic/:graphicId/:graphicVersion/graphic`,
-    handleError(async (ctx) => graphicsStore.getGraphicModule(ctx))
-  );
-  serverApiRouter.get(
-    `/serverApi/v1/graphics/graphic/:graphicId/:graphicVersion/resources/:localPath*`,
+    `/serverApi/internal/graphics/graphic/:graphicId/:graphicVersion/:localPath*`,
     handleError(async (ctx) => graphicsStore.getGraphicResource(ctx))
   );
   serverApiRouter.post(
-    `/serverApi/v1/graphics/graphic`,
+    `/serverApi/internal/graphics/graphic`,
     upload.single("graphic"),
     handleError(async (ctx) => graphicsStore.uploadGraphic(ctx))
   );
+  // serverApiRouter.get(
+  //   `/serverApi/internal/graphics/graphic`,
+  //   handleError(async (ctx) => graphicsStore.uploadGraphic(ctx))
+  // );
 
   // ----- Renderer related endpoints --------------------------------
   serverApiRouter.get(
-    "/serverApi/v1/renderers/list",
+    "/serverApi/internal/renderers/list",
     handleError(async (ctx) => rendererManager.listRenderers(ctx))
   );
   serverApiRouter.get(
-    "/serverApi/v1/renderers/renderer/:rendererId/manifest",
+    "/serverApi/internal/renderers/renderer/:rendererId/manifest",
     handleError(async (ctx) => rendererManager.getRendererManifest(ctx))
   );
   serverApiRouter.get(
-    "/serverApi/v1/renderers/renderer/:rendererId/status",
+    "/serverApi/internal/renderers/renderer/:rendererId/status",
     handleError(async (ctx) => rendererManager.getRendererStatus(ctx))
   );
   serverApiRouter.get(
-    "/serverApi/v1/renderers/renderer/:rendererId/target/:renderTargetId/status",
+    "/serverApi/internal/renderers/renderer/:rendererId/target/:renderTargetId/status",
     handleError(async (ctx) => rendererManager.getRenderTargetStatus(ctx))
   );
+
   serverApiRouter.post(
-    "/serverApi/v1/renderers/renderer/:rendererId/invokeAction",
+    "/serverApi/internal/renderers/renderer/:rendererId/invokeAction",
     handleError(async (ctx) => rendererManager.invokeRendererAction(ctx))
   );
 
   serverApiRouter.post(
-    "/serverApi/v1/renderers/renderer/:rendererId/target/:renderTargetId/load",
+    "/serverApi/internal/renderers/renderer/:rendererId/target/:renderTargetId/load",
     handleError(async (ctx) => rendererManager.loadGraphic(ctx))
   );
   serverApiRouter.post(
-    "/serverApi/v1/renderers/renderer/:rendererId/clear",
+    "/serverApi/internal/renderers/renderer/:rendererId/clear",
     handleError(async (ctx) => rendererManager.clearGraphic(ctx))
   );
   serverApiRouter.post(
-    "/serverApi/v1/renderers/renderer/:rendererId/target/:renderTargetId/invokeAction",
-    handleError(async (ctx) => rendererManager.invokeGraphicAction(ctx))
+    "/serverApi/internal/renderers/renderer/:rendererId/target/:renderTargetId/updateAction",
+    handleError(async (ctx) => rendererManager.invokeGraphicUpdateAction(ctx))
+  );
+  serverApiRouter.post(
+    "/serverApi/internal/renderers/renderer/:rendererId/target/:renderTargetId/playAction",
+    handleError(async (ctx) => rendererManager.invokeGraphicPlayAction(ctx))
+  );
+  serverApiRouter.post(
+    "/serverApi/internal/renderers/renderer/:rendererId/target/:renderTargetId/stopAction",
+    handleError(async (ctx) => rendererManager.invokeGraphicStopAction(ctx))
+  );
+  serverApiRouter.post(
+    "/serverApi/internal/renderers/renderer/:rendererId/target/:renderTargetId/customAction",
+    handleError(async (ctx) => rendererManager.invokeGraphicCustomAction(ctx))
   );
 }
 
