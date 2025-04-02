@@ -101,23 +101,31 @@ async function serveFromPath(ctx, folderPath, url) {
 async function serveFile(ctx, filePath) {
     // set header to the correct mime type
     const ext = path.extname(filePath);
+    let contentType = "application/octet-stream"; // unknown
     if (ext === ".js")
-        ctx.set("Content-Type", "text/javascript");
+        contentType = "text/javascript";
     else if (ext === ".css")
-        ctx.set("Content-Type", "text/css");
+        contentType = "text/css";
     else if (ext === ".html")
-        ctx.set("Content-Type", "text/html");
+        contentType = "text/html";
     else if (ext === ".png")
-        ctx.set("Content-Type", "image/png");
+        contentType = "image/png";
     else if (ext === ".svg")
-        ctx.set("Content-Type", "image/svg+xml");
+        contentType = "image/svg+xml";
     else if (ext === ".map")
-        ctx.set("Content-Type", "application/json");
+        contentType = "application/json";
     else {
         console.error(`Unknown file type: ${ext} (${filePath})`);
     }
     try {
-        ctx.body = await fs.readFile(filePath);
+        ctx.set("Content-Type", contentType);
+        if (contentType.startsWith("text/")) {
+            ctx.set("charset", "utf-8");
+            ctx.body = await fs.readFile(filePath, "utf8");
+        }
+        else {
+            ctx.body = await fs.readFile(filePath);
+        }
     }
     catch (e) {
         if (e.code === "ENOENT") {
