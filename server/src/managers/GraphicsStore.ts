@@ -288,8 +288,10 @@ export class GraphicsStore {
         // Copy the files to the right folder:
         await fs.promises.mkdir(folderPath, { recursive: true });
 
+        const graphicFiles = files.filter((f) => f.path.startsWith(basePath));
+
         // Then, copy files:
-        for (const innerFile of files) {
+        for (const innerFile of graphicFiles) {
           if (innerFile.type !== "file") continue;
 
           const filePath = innerFile.path.slice(basePath.length); // Remove the base path

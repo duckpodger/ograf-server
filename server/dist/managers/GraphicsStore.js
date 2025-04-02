@@ -33,7 +33,8 @@ class GraphicsStore {
                 continue;
             const manifest = JSON.parse(await fs_1.default.promises.readFile(path_1.default.join(this.FILE_PATH, folder, "manifest.json"), "utf8"));
             // Ensure the id and version match:
-            if (id !== manifest.id || version !== `${manifest.version}`) {
+            if (id !== manifest.id ||
+                (manifest.version !== undefined && version !== manifest.version)) {
                 console.error(`Folder name ${folder} does not match manifest id ${manifest.id} or version ${manifest.version}`);
                 continue;
             }
@@ -82,30 +83,35 @@ class GraphicsStore {
         });
         return;
     }
-    async getGraphicModule(ctx) {
-        const params = ctx.params;
-        const id = params.graphicId;
-        const version = params.graphicVersion;
-        // Don't return graphic if the Graphic is marked for removal:
-        if (await this.isGraphicMarkedForRemoval(id, version)) {
-            ctx.status = 404;
-            ctx.body = (0, lib_1.literal)({
-                code: 404,
-                message: "File not found",
-            });
-            return;
-        }
-        await this.serveFile(ctx, path_1.default.join(this.FILE_PATH, this.toFileName(id, version), "graphic.mjs"), this.isImmutable(version));
-    }
+    // async getGraphicModule(ctx: CTX): Promise<void> {
+    //   const params =
+    //     ctx.params as ServerAPI.Endpoints["getGraphicModule"]["params"];
+    //   const id: string = params.graphicId;
+    //   const version: string = params.graphicVersion;
+    //   // Don't return graphic if the Graphic is marked for removal:
+    //   if (await this.isGraphicMarkedForRemoval(id, version)) {
+    //     ctx.status = 404;
+    //     ctx.body = literal<ServerAPI.ErrorReturnValue>({
+    //       code: 404,
+    //       message: "File not found",
+    //     });
+    //     return;
+    //   }
+    //   await this.serveFile(
+    //     ctx,
+    //     path.join(this.FILE_PATH, this.toFileName(id, version), "graphic.mjs"),
+    //     this.isImmutable(version)
+    //   );
+    // }
     async getGraphicResource(ctx) {
         console.log("getGraphicResource");
         const params = ctx.params;
         const id = params.graphicId;
         const version = params.graphicVersion;
         const localPath = params.localPath;
-        console.log("url aaaa", path_1.default.join(this.FILE_PATH, this.toFileName(id, version), "resources", localPath));
+        console.log("url aaaa", path_1.default.join(this.FILE_PATH, this.toFileName(id, version), localPath));
         // Note: We DO serve resources even if the Graphic is marked for removal!
-        await this.serveFile(ctx, path_1.default.join(this.FILE_PATH, this.toFileName(id, version), "resources", localPath), this.isImmutable(version));
+        await this.serveFile(ctx, path_1.default.join(this.FILE_PATH, this.toFileName(id, version), localPath), this.isImmutable(version));
     }
     async deleteGraphic(ctx) {
         const params = ctx.params;
@@ -119,6 +125,8 @@ class GraphicsStore {
         }
     }
     async uploadGraphic(ctx) {
+        var _a;
+        console.log("uploadGraphic");
         // ctx.status = 501
         // ctx.body = literal<ServerAPI.ErrorReturnValue>({code: 501, message: 'Not implemented yet'})
         // Expect a zipped file that contains the Graphic
@@ -149,69 +157,151 @@ class GraphicsStore {
         try {
             await cleanup();
             const files = await (0, decompress_1.default)(tempZipPath, decompressPath);
-            const manifest = files.find((f) => f.path.endsWith("manifest.json"));
-            if (!manifest)
+            console.log("files", files);
+            const uploadedGraphics = [];
+            const manifests = files.filter((f) => f.path.endsWith("manifest.json"));
+            if (!manifests.length)
                 throw new Error("No manifest.json found in zip file");
-            const graphicModule = files.find((f) => f.path.endsWith("graphic.mjs"));
-            if (!graphicModule)
-                throw new Error("No graphic.mjs found in zip file");
-            let basePath = "";
-            if (graphicModule.path.includes("/graphic.mjs")) {
-                // basepath/graphic.mjs
-                basePath = graphicModule.path.slice(0, -"/graphic.mjs".length);
-            }
-            const manifestData = JSON.parse(manifest.data.toString("utf8"));
-            const id = manifestData.id;
-            const version = `${manifestData.version}`;
-            const folderPath = path_1.default.join(this.FILE_PATH, this.toFileName(id, `${version}`));
-            // Check if the Graphic already exists
-            let alreadyExists = false;
-            if (await this.fileExists(folderPath)) {
-                alreadyExists = true;
-                if (await this.isGraphicMarkedForRemoval(id, version)) {
-                    // If a pre-existing graphic is marked for removal, we can overwrite it.
+            // Use content to determine which files are manifest files:
+            //{
+            //  "$schema": "https://ograf.ebu.io/v1-draft-0/specification/json-schemas/graphics/schema.json"
+            //}
+            // const manifests = []
+            // for (const f of files) {
+            //   if (!f.path.endsWith(".json")) continue
+            //   // Check if the file is a manifest file:
+            //   const content = await fs.promises.readFile(f.path, "utf-8");
+            //   if (
+            //     content.includes(`"$schema"`) &&
+            //     // content.includes(`"https://ograf.ebu.io/v1-draft-0/specification/json-schemas/graphics/schema.json"`) &&
+            //     content.includes(`"https://ograf.ebu.io/
+            //   ) {
+            //     manifests.push(f)
+            //   }
+            // }
+            for (const manifest of manifests) {
+                const basePath = path_1.default.dirname(manifest.path);
+                console.log("basePath", basePath);
+                const manifestData = JSON.parse(manifest.data.toString("utf8"));
+                const id = manifestData.id;
+                const version = (_a = manifestData.version) !== null && _a !== void 0 ? _a : "undefined";
+                const folderPath = path_1.default.join(this.FILE_PATH, this.toFileName(id, version));
+                // Check if the Graphic already exists
+                let alreadyExists = false;
+                if (await this.fileExists(folderPath)) {
+                    alreadyExists = true;
+                    // Remove the graphic if it already exists:
                     await this.actuallyDeleteGraphic(id, version);
                     alreadyExists = false;
+                    // if (await this.isGraphicMarkedForRemoval(id, version)) {
+                    //   // If a pre-existing graphic is marked for removal, we can overwrite it.
+                    //   await this.actuallyDeleteGraphic(id, version);
+                    //   alreadyExists = false;
+                    // } else if (version === "0" || version === 'unversioned') {
+                    //   // If the version is 0, it is considered mutable, so we can overwrite it.
+                    //   await this.actuallyDeleteGraphic(id, version);
+                    //   alreadyExists = false;
+                    // }
                 }
-                else if (version === "0") {
-                    // If the version is 0, it is considered mutable, so we can overwrite it.
-                    await this.actuallyDeleteGraphic(id, version);
-                    alreadyExists = false;
-                }
-            }
-            if (alreadyExists) {
-                await cleanup();
-                ctx.status = 409; // conflict
-                ctx.body = (0, lib_1.literal)({
-                    code: 409,
-                    message: "Graphic already exists",
-                });
-                return;
-            }
-            // Copy the files to the right folder:
-            await fs_1.default.promises.mkdir(folderPath, { recursive: true });
-            // Then, copy files:
-            for (const innerFile of files) {
-                if (innerFile.type !== "file")
-                    continue;
-                const filePath = innerFile.path.slice(basePath.length); // Remove the base path
-                const outputFilePath = path_1.default.join(folderPath, filePath);
-                const outputFolderPath = path_1.default.dirname(outputFilePath);
-                // ensure dir:
-                try {
-                    await fs_1.default.promises.mkdir(outputFolderPath, {
-                        recursive: true,
+                if (alreadyExists) {
+                    await cleanup();
+                    ctx.status = 409; // conflict
+                    ctx.body = (0, lib_1.literal)({
+                        code: 409,
+                        message: "Graphic already exists",
                     });
+                    return;
                 }
-                catch (err) {
-                    if (!`${err}`.includes("EEXIST"))
-                        throw err; // Ignore "already exists" errors
+                // Copy the files to the right folder:
+                await fs_1.default.promises.mkdir(folderPath, { recursive: true });
+                // Then, copy files:
+                for (const innerFile of files) {
+                    if (innerFile.type !== "file")
+                        continue;
+                    const filePath = innerFile.path.slice(basePath.length); // Remove the base path
+                    const outputFilePath = path_1.default.join(folderPath, filePath);
+                    const outputFolderPath = path_1.default.dirname(outputFilePath);
+                    // ensure dir:
+                    try {
+                        await fs_1.default.promises.mkdir(outputFolderPath, {
+                            recursive: true,
+                        });
+                    }
+                    catch (err) {
+                        if (!`${err}`.includes("EEXIST"))
+                            throw err; // Ignore "already exists" errors
+                    }
+                    // Copy data:
+                    await fs_1.default.promises.writeFile(outputFilePath, innerFile.data);
                 }
-                // Copy data:
-                await fs_1.default.promises.writeFile(outputFilePath, innerFile.data);
+                uploadedGraphics.push({ id, version });
             }
             ctx.status = 200;
-            ctx.body = (0, lib_1.literal)({});
+            ctx.body = (0, lib_1.literal)({
+                graphics: uploadedGraphics,
+            });
+            // const graphicModule = files.find((f) => f.path.endsWith("graphic.mjs"));
+            // if (!graphicModule) throw new Error("No graphic.mjs found in zip file");
+            // let basePath = "";
+            // if (graphicModule.path.includes("/graphic.mjs")) {
+            //   // basepath/graphic.mjs
+            //   basePath = graphicModule.path.slice(0, -"/graphic.mjs".length);
+            // }
+            // const manifestData = JSON.parse(
+            //   manifest.data.toString("utf8")
+            // ) as GraphicsManifest;
+            // const id = manifestData.id;
+            // const version = `${manifestData.version}`;
+            // const folderPath = path.join(
+            //   this.FILE_PATH,
+            //   this.toFileName(id, `${version}`)
+            // );
+            // // Check if the Graphic already exists
+            // let alreadyExists = false;
+            // if (await this.fileExists(folderPath)) {
+            //   alreadyExists = true;
+            //   if (await this.isGraphicMarkedForRemoval(id, version)) {
+            //     // If a pre-existing graphic is marked for removal, we can overwrite it.
+            //     await this.actuallyDeleteGraphic(id, version);
+            //     alreadyExists = false;
+            //   } else if (version === "0") {
+            //     // If the version is 0, it is considered mutable, so we can overwrite it.
+            //     await this.actuallyDeleteGraphic(id, version);
+            //     alreadyExists = false;
+            //   }
+            // }
+            // if (alreadyExists) {
+            //   await cleanup();
+            //   ctx.status = 409; // conflict
+            //   ctx.body = literal<ServerAPI.ErrorReturnValue>({
+            //     code: 409,
+            //     message: "Graphic already exists",
+            //   });
+            //   return;
+            // }
+            // // Copy the files to the right folder:
+            // await fs.promises.mkdir(folderPath, { recursive: true });
+            // // Then, copy files:
+            // for (const innerFile of files) {
+            //   if (innerFile.type !== "file") continue;
+            //   const filePath = innerFile.path.slice(basePath.length); // Remove the base path
+            //   const outputFilePath = path.join(folderPath, filePath);
+            //   const outputFolderPath = path.dirname(outputFilePath);
+            //   // ensure dir:
+            //   try {
+            //     await fs.promises.mkdir(outputFolderPath, {
+            //       recursive: true,
+            //     });
+            //   } catch (err) {
+            //     if (!`${err}`.includes("EEXIST")) throw err; // Ignore "already exists" errors
+            //   }
+            //   // Copy data:
+            //   await fs.promises.writeFile(outputFilePath, innerFile.data);
+            // }
+            // ctx.status = 200;
+            // ctx.body = literal<ServerAPI.Endpoints["uploadGraphic"]["returnValue"]>(
+            //   {}
+            // );
         }
         finally {
             // clean up after ourselves:

@@ -15,7 +15,7 @@
     "@koa/router": "^13.1.0",
     "@zimtsui/koa-ws-filter": "^0.0.5",
     "decompress": "^4.2.1",
-    "ograf": "^0.0.3",
+    "ograf": "0.0.5",
     "json-rpc-2.0": "^1.7.0",
     "koa": "^2.15.3",
     "koa-bodyparser": "^4.4.1",
