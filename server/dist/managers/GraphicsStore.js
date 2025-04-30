@@ -135,7 +135,7 @@ class GraphicsStore {
         // console.log('files', ctx.request.files)
         // console.log('body', ctx.request.body)
         console.log("Uploaded file", file.originalname, file.size);
-        if (file.mimetype !== "application/x-zip-compressed") {
+        if (!["application/x-zip-compressed", "application/zip"].includes(file.mimetype)) {
             ctx.status = 400;
             ctx.body = (0, lib_1.literal)({
                 code: 400,
@@ -214,8 +214,9 @@ class GraphicsStore {
                 }
                 // Copy the files to the right folder:
                 await fs_1.default.promises.mkdir(folderPath, { recursive: true });
+                const graphicFiles = files.filter((f) => f.path.startsWith(basePath));
                 // Then, copy files:
-                for (const innerFile of files) {
+                for (const innerFile of graphicFiles) {
                     if (innerFile.type !== "file")
                         continue;
                     const filePath = innerFile.path.slice(basePath.length); // Remove the base path
