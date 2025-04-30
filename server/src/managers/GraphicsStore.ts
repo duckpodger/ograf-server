@@ -188,7 +188,7 @@ export class GraphicsStore {
 
     console.log("Uploaded file", file.originalname, file.size);
 
-    if (file.mimetype !== "application/x-zip-compressed") {
+    if (!["application/x-zip-compressed","application/zip"].includes(file.mimetype)) {
       ctx.status = 400;
       ctx.body = literal<ServerAPI.ErrorReturnValue>({
         code: 400,
