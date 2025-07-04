@@ -24,6 +24,19 @@ export class GraphicsStore {
     this.removeExpiredGraphics().catch(console.error);
   }
 
+  private async findManifestFile(graphicsFolder: string): Promise<string> {
+    const files = await fs.promises.readdir(graphicsFolder, {
+      withFileTypes: true,
+    })
+    for (const file of files) {
+      if (file.isFile() && file.name.endsWith(".ograf")) {
+        return path.join(graphicsFolder, file.name)
+      }
+    }
+
+    throw new Error(`No OGraf manifest found in folder ${graphicsFolder}`)
+  }
+
   async listGraphics(ctx: CTX): Promise<void> {
     const folderList = await fs.promises.readdir(this.FILE_PATH);
 
@@ -34,9 +47,11 @@ export class GraphicsStore {
       // Don't list Graphics that are marked for removal:
       if (await this.isGraphicMarkedForRemoval(id, version)) continue;
 
+      const manifestFile = await this.findManifestFile(path.join(this.FILE_PATH, folder))
+
       const manifest = JSON.parse(
         await fs.promises.readFile(
-          path.join(this.FILE_PATH, folder, "manifest.json"),
+          manifestFile,
           "utf8"
         )
       ) as GraphicsManifest;
@@ -70,11 +85,7 @@ export class GraphicsStore {
     const id = params.graphicId;
     const version = params.graphicVersion;
 
-    const manifestPath = path.join(
-      this.FILE_PATH,
-      this.toFileName(id, version),
-      "manifest.json"
-    );
+    const manifestPath = await this.findManifestFile(path.join(this.FILE_PATH, this.toFileName(id, version)));
 
     // Don't return manifest if the Graphic is marked for removal:
     if (
@@ -217,9 +228,9 @@ export class GraphicsStore {
 
       const uploadedGraphics: { id: string; version?: string }[] = [];
 
-      const manifests = files.filter((f) => f.path.endsWith("manifest.json"));
+      const manifests = files.filter((f) => f.path.endsWith(".ograf"));
       if (!manifests.length)
-        throw new Error("No manifest.json found in zip file");
+        throw new Error("No OGraf manifests found in zip file");
 
       // Use content to determine which files are manifest files:
       //{
