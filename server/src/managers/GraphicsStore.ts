@@ -29,7 +29,8 @@ export class GraphicsStore {
       withFileTypes: true,
     })
     for (const file of files) {
-      if (file.isFile() && file.name.endsWith(".ograf")) {
+      // support both v1 and v0 OGraf files
+      if (file.isFile() && (file.name.endsWith(".ograf.json") || file.name === 'manifest.json')) {
         return path.join(graphicsFolder, file.name)
       }
     }
@@ -228,7 +229,7 @@ export class GraphicsStore {
 
       const uploadedGraphics: { id: string; version?: string }[] = [];
 
-      const manifests = files.filter((f) => f.path.endsWith(".ograf"));
+      const manifests = files.filter((f) => f.path.endsWith(".ograf.json") || f.path.endsWith("manifest.json"));
       if (!manifests.length)
         throw new Error("No OGraf manifests found in zip file");
 
