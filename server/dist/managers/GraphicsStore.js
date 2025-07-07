@@ -23,6 +23,18 @@ class GraphicsStore {
         // Also do a check now:
         this.removeExpiredGraphics().catch(console.error);
     }
+    async findManifestFile(graphicsFolder) {
+        const files = await fs_1.default.promises.readdir(graphicsFolder, {
+            withFileTypes: true,
+        });
+        for (const file of files) {
+            // support both v1 and v0 OGraf files
+            if (file.isFile() && (file.name.endsWith(".ograf.json") || file.name === 'manifest.json')) {
+                return path_1.default.join(graphicsFolder, file.name);
+            }
+        }
+        throw new Error(`No OGraf manifest found in folder ${graphicsFolder}`);
+    }
     async listGraphics(ctx) {
         const folderList = await fs_1.default.promises.readdir(this.FILE_PATH);
         const graphics = [];
@@ -31,7 +43,8 @@ class GraphicsStore {
             // Don't list Graphics that are marked for removal:
             if (await this.isGraphicMarkedForRemoval(id, version))
                 continue;
-            const manifest = JSON.parse(await fs_1.default.promises.readFile(path_1.default.join(this.FILE_PATH, folder, "manifest.json"), "utf8"));
+            const manifestFile = await this.findManifestFile(path_1.default.join(this.FILE_PATH, folder));
+            const manifest = JSON.parse(await fs_1.default.promises.readFile(manifestFile, "utf8"));
             // Ensure the id and version match:
             if (id !== manifest.id ||
                 (manifest.version !== undefined && version !== manifest.version)) {
@@ -54,7 +67,7 @@ class GraphicsStore {
         const params = ctx.params;
         const id = params.graphicId;
         const version = params.graphicVersion;
-        const manifestPath = path_1.default.join(this.FILE_PATH, this.toFileName(id, version), "manifest.json");
+        const manifestPath = await this.findManifestFile(path_1.default.join(this.FILE_PATH, this.toFileName(id, version)));
         // Don't return manifest if the Graphic is marked for removal:
         if ((await this.fileExists(manifestPath)) &&
             !(await this.isGraphicMarkedForRemoval(id, version))) {
@@ -159,9 +172,9 @@ class GraphicsStore {
             const files = await (0, decompress_1.default)(tempZipPath, decompressPath);
             console.log("files", files);
             const uploadedGraphics = [];
-            const manifests = files.filter((f) => f.path.endsWith("manifest.json"));
+            const manifests = files.filter((f) => f.path.endsWith(".ograf.json") || f.path.endsWith("manifest.json"));
             if (!manifests.length)
-                throw new Error("No manifest.json found in zip file");
+                throw new Error("No OGraf manifests found in zip file");
             // Use content to determine which files are manifest files:
             //{
             //  "$schema": "https://ograf.ebu.io/v1-draft-0/specification/json-schemas/graphics/schema.json"
