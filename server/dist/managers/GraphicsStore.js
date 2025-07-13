@@ -28,8 +28,11 @@ class GraphicsStore {
             withFileTypes: true,
         });
         for (const file of files) {
-            // support both v1 and v0 OGraf files
-            if (file.isFile() && (file.name.endsWith(".ograf.json") || file.name === 'manifest.json')) {
+            if (file.isFile() &&
+                (file.name.endsWith(".ograf.json") || // Current v1 requirement, as of 2025-07-13
+                    file.name.endsWith(".ograf") || // File name from 2025-06-13 to 2025-07-13
+                    file.name === "manifest.json") // Legacy, initial manifest file name
+            ) {
                 return path_1.default.join(graphicsFolder, file.name);
             }
         }

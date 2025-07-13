@@ -27,15 +27,19 @@ export class GraphicsStore {
   private async findManifestFile(graphicsFolder: string): Promise<string> {
     const files = await fs.promises.readdir(graphicsFolder, {
       withFileTypes: true,
-    })
+    });
     for (const file of files) {
-      // support both v1 and v0 OGraf files
-      if (file.isFile() && (file.name.endsWith(".ograf.json") || file.name === 'manifest.json')) {
-        return path.join(graphicsFolder, file.name)
+      if (
+        file.isFile() &&
+        (file.name.endsWith(".ograf.json") || // Current v1 requirement, as of 2025-07-13
+          file.name.endsWith(".ograf") || // File name from 2025-06-13 to 2025-07-13
+          file.name === "manifest.json") // Legacy, initial manifest file name
+      ) {
+        return path.join(graphicsFolder, file.name);
       }
     }
 
-    throw new Error(`No OGraf manifest found in folder ${graphicsFolder}`)
+    throw new Error(`No OGraf manifest found in folder ${graphicsFolder}`);
   }
 
   async listGraphics(ctx: CTX): Promise<void> {
@@ -48,13 +52,12 @@ export class GraphicsStore {
       // Don't list Graphics that are marked for removal:
       if (await this.isGraphicMarkedForRemoval(id, version)) continue;
 
-      const manifestFile = await this.findManifestFile(path.join(this.FILE_PATH, folder))
+      const manifestFile = await this.findManifestFile(
+        path.join(this.FILE_PATH, folder)
+      );
 
       const manifest = JSON.parse(
-        await fs.promises.readFile(
-          manifestFile,
-          "utf8"
-        )
+        await fs.promises.readFile(manifestFile, "utf8")
       ) as GraphicsManifest;
 
       // Ensure the id and version match:
@@ -86,7 +89,9 @@ export class GraphicsStore {
     const id = params.graphicId;
     const version = params.graphicVersion;
 
-    const manifestPath = await this.findManifestFile(path.join(this.FILE_PATH, this.toFileName(id, version)));
+    const manifestPath = await this.findManifestFile(
+      path.join(this.FILE_PATH, this.toFileName(id, version))
+    );
 
     // Don't return manifest if the Graphic is marked for removal:
     if (
@@ -200,7 +205,11 @@ export class GraphicsStore {
 
     console.log("Uploaded file", file.originalname, file.size);
 
-    if (!["application/x-zip-compressed","application/zip"].includes(file.mimetype)) {
+    if (
+      !["application/x-zip-compressed", "application/zip"].includes(
+        file.mimetype
+      )
+    ) {
       ctx.status = 400;
       ctx.body = literal<ServerAPI.ErrorReturnValue>({
         code: 400,
@@ -229,7 +238,10 @@ export class GraphicsStore {
 
       const uploadedGraphics: { id: string; version?: string }[] = [];
 
-      const manifests = files.filter((f) => f.path.endsWith(".ograf.json") || f.path.endsWith("manifest.json"));
+      const manifests = files.filter(
+        (f) =>
+          f.path.endsWith(".ograf.json") || f.path.endsWith("manifest.json")
+      );
       if (!manifests.length)
         throw new Error("No OGraf manifests found in zip file");
 
